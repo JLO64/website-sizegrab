@@ -9,6 +9,7 @@ webdir = "/tmp/website-sizegrab"
 if os.path.exists(webdir): shutil.rmtree(webdir)
 os.makedirs(webdir)
 os.makedirs(webdir + "/img")
+os.makedirs(webdir + "/scripts")
 os.chdir(webdir)
 
 # Grab HTML
@@ -28,3 +29,16 @@ for img in img_tags:
     img_res = requests.get(img_url)
     with open(basename, 'wb') as f: f.write(img_res.content)
 os.chdir(webdir)
+
+# Parse HTML for scripts
+os.chdir(webdir + "/scripts")
+script_tags = soup.find_all('script')
+for script in script_tags:
+    script_url = script.attrs.get("src")
+    if not script_url: continue
+    script_url = urljoin(URL, script_url)
+    basename = os.path.basename(script_url)
+    script_res = requests.get(script_url)
+    with open(basename, 'wb') as f: f.write(script_res.content)
+os.chdir(webdir)
+
