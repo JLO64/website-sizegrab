@@ -106,7 +106,7 @@ def calculate_website_size_data(URL):
 
     return sizedict
 
-website_size_data = calculate_website_size_data("https://www.blitzw.in/")
+website_size_data = calculate_website_size_data("https://fanrongbin.com/")
 if website_size_data["total"] == 0: print("ERROR. Did you paste in the whole URL?")
 for size_category in website_size_data:
     print(size_category,"size is:", str(round(website_size_data[size_category] / 1024.0, 2)) + "KB")
