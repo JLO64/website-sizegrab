@@ -87,7 +87,6 @@ def calculate_website_size_data(URL):
             basename = os.path.basename(url)
             font_res = requests.get(url)
             with open(basename, 'wb') as f: f.write(font_res.content)
-    sizedict['fonts'] = calculate_directory_size(webdir + "/fonts")
     # Parse HTML for fonts
     font_urls = re.findall(r'@font-face\s*{[^}]*src:\s*url\((.*?)\)', html)
     for url in font_urls:
@@ -100,13 +99,13 @@ def calculate_website_size_data(URL):
         basename = os.path.basename(url)
         font_res = requests.get(url)
         with open(basename, 'wb') as f: f.write(font_res.content)
-    sizedict['fonts'] += calculate_directory_size(webdir + "/fonts")
+    sizedict['fonts'] = calculate_directory_size(webdir + "/fonts")
 
     sizedict['total'] = calculate_directory_size(webdir)
 
     return sizedict
 
-website_size_data = calculate_website_size_data("https://fanrongbin.com/")
+website_size_data = calculate_website_size_data("https://www.julianlopez.net/")
 if website_size_data["total"] == 0: print("ERROR. Did you paste in the whole URL?")
 for size_category in website_size_data:
     print(size_category,"size is:", str(round(website_size_data[size_category] / 1024.0, 2)) + "KB")
