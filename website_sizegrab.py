@@ -26,6 +26,7 @@ def calculate_website_size_data(URL):
     os.makedirs(webdir + "/scripts")
     os.makedirs(webdir + "/styles")
     os.makedirs(webdir + "/fonts")
+    os.makedirs(webdir + "/icons")
 
     # Grab HTML
     os.chdir(webdir + "/html")
@@ -71,6 +72,18 @@ def calculate_website_size_data(URL):
         with open(basename, 'wb') as f: f.write(style_res.content)
     sizedict['styles'] = calculate_directory_size(webdir + "/styles")
 
+    # Parse HTML for icon
+    os.chdir(webdir + "/icons")
+    link_tags = soup.find_all('link', rel='shortcut icon')
+    for link in link_tags:
+        icon_url = link.attrs.get("href")
+        if not icon_url: continue
+        icon_url = urljoin(URL, icon_url)
+        basename = os.path.basename(icon_url)
+        icon_res = requests.get(icon_url)
+        with open(basename, 'wb') as f: f.write(icon_res.content)
+    sizedict['icons'] = calculate_directory_size(webdir + "/icons")
+
     # Parse stylesheets for fonts
     os.chdir(webdir + "/fonts")
     for stylesheet in os.listdir(webdir + "/styles"):
@@ -109,6 +122,3 @@ website_size_data = calculate_website_size_data("https://www.julianlopez.net/")
 if website_size_data["total"] == 0: print("ERROR. Did you paste in the whole URL?")
 for size_category in website_size_data:
     print(size_category,"size is:", str(round(website_size_data[size_category] / 1024.0, 2)) + "KB")
-
-# Purge `output` folder
-# shutil.rmtree(webdir)
