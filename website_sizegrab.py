@@ -1,4 +1,4 @@
-import requests, os, shutil, re
+import requests, os, shutil, re, cssutils
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
@@ -16,6 +16,9 @@ def calculate_directory_size(directory_path):
 def calculate_website_size_data(URL):
     if not 'http' in URL: return {"total": 0}
     
+    css_parser = cssutils.CSSParser()
+    stylesheet = cssutils.css.CSSStyleSheet()
+
     sizedict = {}
 
     # set up a temporary directory
@@ -70,11 +73,40 @@ def calculate_website_size_data(URL):
         basename = os.path.basename(style_url)
         style_res = requests.get(style_url)
         with open(basename, 'wb') as f: f.write(style_res.content)
+        temp_stylesheet = css_parser.parseFile(basename)
+        for rule in temp_stylesheet: stylesheet.add(rule)
     sizedict['styles'] = calculate_directory_size(webdir + "/styles")
+    # Parse HTML for <style> tags
+    style_tags = soup.find_all('style')
+    for tag in style_tags:
+        temp_stylesheet = css_parser.parseString(tag.string)
+        for rule in temp_stylesheet:
+            stylesheet.add(rule)
+
+    # Parse all CSS rules
+    for rule in stylesheet:
+        if rule.type == rule.FONT_FACE_RULE:
+            os.chdir(webdir + "/fonts")
+            for property in rule.style:
+                if property.name == 'src':
+                    font_url_start = property.value.find('url(')
+                    if font_url_start != -1:
+                        font_url_end = property.value.find(')', font_url_start)
+                        if font_url_end != -1:
+                            font_url = property.value[font_url_start+4:font_url_end]
+                            if font_url.startswith('//'): font_url = 'http:' + font_url
+                            elif font_url.startswith('/'): font_url = urljoin(URL, font_url)
+                            elif not font_url.startswith('http'): continue
+                            basename = os.path.basename(font_url)
+                            font_res = requests.get(font_url)
+                            with open(basename, 'wb') as f: f.write(font_res.content)
+                            break
+    sizedict['fonts'] = calculate_directory_size(webdir + "/fonts")
 
     # Parse HTML for icon
     os.chdir(webdir + "/icons")
-    link_tags = soup.find_all('link', rel='shortcut icon')
+    link_tags = soup.find_all('link', rel='icon')
+    if len(link_tags) == 0: link_tags = soup.find_all('link', rel='shortcut icon')
     for link in link_tags:
         icon_url = link.attrs.get("href")
         if not icon_url: continue
@@ -83,36 +115,6 @@ def calculate_website_size_data(URL):
         icon_res = requests.get(icon_url)
         with open(basename, 'wb') as f: f.write(icon_res.content)
     sizedict['icons'] = calculate_directory_size(webdir + "/icons")
-
-    # Parse stylesheets for fonts
-    os.chdir(webdir + "/fonts")
-    for stylesheet in os.listdir(webdir + "/styles"):
-        with open(os.path.join(webdir + "/styles", stylesheet), 'r') as f:
-            content = f.read()
-        urls = re.findall(r'url\((.*?)\)', content)
-        for url in urls:
-            if url.startswith('//'):
-                url = 'http:' + url
-            elif url.startswith('/'):
-                url = urljoin(URL, url)
-            elif not url.startswith('http'):
-                continue
-            basename = os.path.basename(url)
-            font_res = requests.get(url)
-            with open(basename, 'wb') as f: f.write(font_res.content)
-    # Parse HTML for fonts
-    font_urls = re.findall(r'@font-face\s*{[^}]*src:\s*url\((.*?)\)', html)
-    for url in font_urls:
-        if url.startswith('//'):
-            url = 'http:' + url
-        elif url.startswith('/'):
-            url = urljoin(URL, url)
-        elif not url.startswith('http'):
-            continue
-        basename = os.path.basename(url)
-        font_res = requests.get(url)
-        with open(basename, 'wb') as f: f.write(font_res.content)
-    sizedict['fonts'] = calculate_directory_size(webdir + "/fonts")
 
     sizedict['total'] = calculate_directory_size(webdir)
 
